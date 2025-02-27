@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>Enhanced Car Game</title>
   <style>
     * {
@@ -20,17 +20,22 @@
       overflow: hidden;
       background: #111; /* Default dark mode */
     }
-    #gameCanvas {
-      border: 3px solid #fff;
+    #gameContainer {
       position: relative;
-      z-index: 1;
-      background: #222; /* Default dark mode canvas */
+      width: 100vw;
+      height: 100vh;
     }
     #backgroundCanvas {
       position: absolute;
       top: 0;
       left: 0;
       z-index: -1;
+    }
+    #gameCanvas {
+      border: 3px solid #fff;
+      position: absolute;
+      z-index: 1;
+      background: #222; /* Default dark mode canvas */
     }
     .overlay {
       position: absolute;
@@ -72,31 +77,67 @@
       font-size: 24px;
       z-index: 10;
     }
-    .car-model {
-      display: inline-block;
-      margin: 10px;
-      text-align: center;
-    }
-    .car-model img {
-      width: 50px;
-      height: 50px;
-      cursor: pointer;
-    }
-    .theme-toggle {
+    #menuButton {
       position: absolute;
       top: 10px;
       right: 10px;
-      z-index: 10;
-    }
-    .theme-toggle button {
-      padding: 10px;
-      font-size: 16px;
+      font-size: 24px;
       cursor: pointer;
+      z-index: 30;
+    }
+    #sidebarMenu {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+    }
+    #leftControl, #rightControl {
+      position: absolute;
+      bottom: 10px;
+      width: 100px;
+      height: 50px;
+      background: #fff;
+      opacity: 0.5;
+      z-index: 10;
+      display: none;
+    }
+    #leftControl {
+      left: 10px;
+    }
+    #rightControl {
+      right: 10px;
+    }
+    @media (max-width: 768px) {
+      #leftControl, #rightControl {
+        display: block;
+      }
     }
   </style>
 </head>
 <body>
   <canvas id="backgroundCanvas"></canvas>
+  <div id="gameContainer">
+    <div id="menuButton">☰</div>
+    <div id="sidebarMenu" class="overlay">
+      <h2>Menu</h2>
+      <button id="resumeMenuButton">Resume</button>
+      <button id="pauseMenuButton">Pause</button>
+      <button id="resetMenuButton">Reset</button>
+      <button id="difficultyMenuButton">Select Difficulty</button>
+      <button id="themeMenuButton">Toggle Theme</button>
+    </div>
+    <canvas id="gameCanvas" width="600" height="800"></canvas>
+    <div id="leftControl"></div>
+    <div id="rightControl"></div>
+    <div id="scoreDisplay">Score: 0 | Level: 1 | High Score: 0</div>
+  </div>
   <div id="difficultyOverlay" class="overlay">
     <h1>Select Difficulty</h1>
     <button id="easyButton">Easy</button>
@@ -105,29 +146,6 @@
   </div>
   <div id="pauseOverlay" class="overlay" style="display: none;">
     <h2>Paused</h2>
-    <div id="carSelection">
-      <h3>Select Your Car</h3>
-      <div class="car-model">
-        <img src="eon.png" alt="Eon" data-model="eon">
-        <p>Eon</p>
-      </div>
-      <div class="car-model">
-        <img src="nano.png" alt="Nano" data-model="nano">
-        <p>Nano</p>
-      </div>
-      <div class="car-model">
-        <img src="wagnor.png" alt="WagonR" data-model="wagnor">
-        <p>WagonR</p>
-      </div>
-      <div class="car-model">
-        <img src="venue.png" alt="Venue" data-model="venue">
-        <p>Venue</p>
-      </div>
-      <div class="car-model">
-        <img src="alto.png" alt="Alto" data-model="alto">
-        <p>Alto</p>
-      </div>
-    </div>
     <button id="resumeButton">Resume</button>
     <button id="resetButton">Reset</button>
   </div>
@@ -136,17 +154,10 @@
     <p>Your score: <span id="finalScore"></span></p>
     <p>Press 'R' to restart</p>
   </div>
-  <div id="scoreDisplay">Score: 0 | Level: 1 | High Score: 0</div>
-  <div class="theme-toggle">
-    <button id="themeButton">Toggle Theme</button>
-  </div>
-  <canvas id="gameCanvas" width="600" height="800"></canvas>
 
   <script>
     // Background Canvas for Stars
     const backgroundCanvas = document.getElementById('backgroundCanvas');
-    backgroundCanvas.width = window.innerWidth;
-    backgroundCanvas.height = window.innerHeight;
     const bgCtx = backgroundCanvas.getContext('2d');
 
     // Game Canvas & UI Elements
@@ -157,7 +168,10 @@
     const pauseOverlay = document.getElementById('pauseOverlay');
     const gameOverOverlay = document.getElementById('gameOverOverlay');
     const finalScore = document.getElementById('finalScore');
-    const themeButton = document.getElementById('themeButton');
+    const menuButton = document.getElementById('menuButton');
+    const sidebarMenu = document.getElementById('sidebarMenu');
+    const leftControl = document.getElementById('leftControl');
+    const rightControl = document.getElementById('rightControl');
 
     // Car Properties
     const carWidth = 40;
@@ -239,14 +253,59 @@
     document.getElementById('hardButton').addEventListener('click', () => setDifficulty('hard'));
     document.getElementById('resumeButton').addEventListener('click', resumeGame);
     document.getElementById('resetButton').addEventListener('click', resetGame);
-    document.getElementById('themeButton').addEventListener('click', toggleTheme);
+    document.getElementById('resumeMenuButton').addEventListener('click', resumeGame);
+    document.getElementById('pauseMenuButton').addEventListener('click', pauseGame);
+    document.getElementById('resetMenuButton').addEventListener('click', resetGame);
+    document.getElementById('difficultyMenuButton').addEventListener('click', showDifficultyOverlay);
+    document.getElementById('themeMenuButton').addEventListener('click', toggleTheme);
 
-    // Car Model Selection
-    document.querySelectorAll('.car-model img').forEach(img => {
-      img.addEventListener('click', (e) => {
-        currentCarModel = e.target.dataset.model;
-        // Add logic here to change car appearance or attributes based on model
-      });
+    // Menu Button Toggle
+    menuButton.addEventListener('click', () => {
+      if (sidebarMenu.style.display === 'flex') {
+        sidebarMenu.style.display = 'none';
+      } else {
+        // Update buttons based on game state
+        if (gameRunning && !gamePaused) {
+          document.getElementById('pauseMenuButton').style.display = 'block';
+          document.getElementById('resumeMenuButton').style.display = 'none';
+        } else if (gamePaused) {
+          document.getElementById('pauseMenuButton').style.display = 'none';
+          document.getElementById('resumeMenuButton').style.display = 'block';
+        } else {
+          document.getElementById('pauseMenuButton').style.display = 'none';
+          document.getElementById('resumeMenuButton').style.display = 'none';
+        }
+        sidebarMenu.style.display = 'flex';
+      }
+    });
+
+    // Touch Controls
+    leftControl.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      keys['ArrowLeft'] = true;
+    }, { passive: false });
+    leftControl.addEventListener('touchend', () => {
+      keys['ArrowLeft'] = false;
+    });
+    leftControl.addEventListener('mousedown', () => {
+      keys['ArrowLeft'] = true;
+    });
+    leftControl.addEventListener('mouseup', () => {
+      keys['ArrowLeft'] = false;
+    });
+
+    rightControl.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      keys['ArrowRight'] = true;
+    }, { passive: false });
+    rightControl.addEventListener('touchend', () => {
+      keys['ArrowRight'] = false;
+    });
+    rightControl.addEventListener('mousedown', () => {
+      keys['ArrowRight'] = true;
+    });
+    rightControl.addEventListener('mouseup', () => {
+      keys['ArrowRight'] = false;
     });
 
     // Keyboard Event Listeners
@@ -279,6 +338,7 @@
       difficultyOverlay.style.display = 'none';
       pauseOverlay.style.display = 'none';
       gameOverOverlay.style.display = 'none';
+      sidebarMenu.style.display = 'none';
       gameRunning = true;
       gamePaused = false;
       resetGameState();
@@ -303,12 +363,14 @@
     function pauseGame() {
       gamePaused = true;
       pauseOverlay.style.display = 'flex';
+      sidebarMenu.style.display = 'none';
     }
 
     // Resume the game
     function resumeGame() {
       gamePaused = false;
       pauseOverlay.style.display = 'none';
+      sidebarMenu.style.display = 'none';
       lastFrameTime = performance.now();
       requestAnimationFrame(gameLoop);
     }
@@ -319,6 +381,7 @@
       gamePaused = false;
       pauseOverlay.style.display = 'none';
       gameOverOverlay.style.display = 'none';
+      sidebarMenu.style.display = 'none';
       if (!gameRunning) {
         gameRunning = true;
         lastFrameTime = performance.now();
@@ -331,6 +394,7 @@
       gameRunning = false;
       finalScore.textContent = score;
       gameOverOverlay.style.display = 'flex';
+      sidebarMenu.style.display = 'none';
     }
 
     // Draw the car
@@ -340,10 +404,9 @@
       ctx.fillStyle = 'black';
       ctx.fillRect(carX + 5, carY + carHeight - 10, 10, 5); // Left wheel
       ctx.fillRect(carX + carWidth - 15, carY + carHeight - 10, 10, 5); // Right wheel
-      // Replace with car model image based on currentCarModel if available
     }
 
-    // Create an obstacle (car or truck)
+    // Create an obstacle
     function createObstacle() {
       const width = 40;
       const height = 70;
@@ -352,12 +415,11 @@
       return { x, y, width, height, speed: obstacleSpeed };
     }
 
-    // Draw obstacles (cars or trucks)
+    // Draw obstacles
     function drawObstacles() {
       ctx.fillStyle = 'blue';
       obstacles.forEach(obstacle => {
         ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-        // Replace with car/truck images if available
       });
     }
 
@@ -369,7 +431,7 @@
       obstacles = obstacles.filter(obstacle => obstacle.y < canvas.height);
     }
 
-    // Check collisions with obstacles
+    // Check collisions
     function checkCollisions() {
       for (let obstacle of obstacles) {
         if (
@@ -384,7 +446,7 @@
       }
     }
 
-    // Update score and display
+    // Update score
     function updateScore() {
       score++;
       if (score > highScore) highScore = score;
@@ -428,6 +490,41 @@
       scoreDisplay.style.color = isDarkMode ? '#fff' : '#000';
     }
 
+    // Resize Canvas
+    function resizeCanvas() {
+      const availableWidth = window.innerWidth;
+      const availableHeight = window.innerHeight;
+      const scale = Math.min(availableWidth / 600, availableHeight / 800);
+      canvas.style.width = (600 * scale) + 'px';
+      canvas.style.height = (800 * scale) + 'px';
+      canvas.style.position = 'absolute';
+      canvas.style.left = ((availableWidth - 600 * scale) / 2) + 'px';
+      canvas.style.top = ((availableHeight - 800 * scale) / 2) + 'px';
+    }
+
+    // Resize Background Canvas
+    function resizeBackgroundCanvas() {
+      backgroundCanvas.width = window.innerWidth;
+      backgroundCanvas.height = window.innerHeight;
+      initStars();
+    }
+
+    // Initial resize
+    resizeCanvas();
+    resizeBackgroundCanvas();
+
+    // Add resize event listeners
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      resizeBackgroundCanvas();
+    });
+
+    // Show Difficulty Overlay
+    function showDifficultyOverlay() {
+      difficultyOverlay.style.display = 'flex';
+      sidebarMenu.style.display = 'none';
+    }
+
     // Main game loop
     function gameLoop(timestamp) {
       if (!gameRunning || gamePaused) return;
@@ -435,18 +532,15 @@
       const deltaTime = timestamp - lastFrameTime;
       lastFrameTime = timestamp;
 
-      // Clear canvas with theme background
       ctx.fillStyle = isDarkMode ? '#222' : '#ddd';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       drawRoad();
 
-      // Update car position
       if (keys['ArrowLeft']) carX -= carSpeed * deltaTime / 1000;
       if (keys['ArrowRight']) carX += carSpeed * deltaTime / 1000;
       carX = Math.max(roadMargin, Math.min(carX, canvas.width - roadMargin - carWidth));
 
-      // Spawn obstacles
       if (timestamp - lastObstacleTime > obstacleInterval) {
         obstacles.push(createObstacle());
         lastObstacleTime = timestamp;
