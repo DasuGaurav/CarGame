@@ -92,12 +92,20 @@
       background: linear-gradient(45deg, #e52e71, #ff8a00);
       transform: scale(1.05);
     }
-    /* Media Query: On mobile, reposition full screen button to bottom-right */
+    /* Media Query: On mobile, adjust scoreboard & fullscreen button */
     @media (max-width: 600px) {
+      #scoreDisplay {
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 1.4rem;
+        padding: 10px 16px;
+      }
       #fullscreenButton {
-        top: auto;
-        bottom: 20px;
-        right: 20px;
+        top: 10px;
+        right: 10px;
+        font-size: 1.1rem;
+        padding: 12px 24px;
       }
     }
     /* Touch Zones for Mobile */
@@ -405,7 +413,7 @@
       baseObstacleInterval = difficulty === 'easy' ? 2000 : difficulty === 'medium' ? 1500 : 1000;
       obstacleSpeed = baseObstacleSpeed;
       obstacleInterval = baseObstacleInterval;
-      // Show the difficulty overlay is already hidden by splash end.
+      // Hide the difficulty overlay (splash already ended)
       difficultyOverlay.style.display = 'none';
       startGame();
     }
@@ -534,8 +542,9 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       drawRoad();
 
+      // Increase sensitivity on mobile
       if (useMotion) {
-        const sensitivity = 4;
+        const sensitivity = isMobile ? 8 : 4;
         carX += currentTilt * sensitivity * (deltaTime / 1000);
       } else {
         if (moveLeft) carX -= carSpeed * deltaTime / 1000;
@@ -556,11 +565,10 @@
       requestAnimationFrame(gameLoop);
     }
 
-    // Start: Show splash screen, then after 3 seconds fade it out and display difficulty overlay
+    // Start: Show splash screen, then fade out and display difficulty overlay
     updateScoreDisplay();
     splashOverlay.style.display = 'flex';
     setTimeout(() => {
-      // Fade out splash overlay (using CSS transition)
       splashOverlay.style.transition = 'opacity 1s ease-out';
       splashOverlay.style.opacity = 0;
       setTimeout(() => {
