@@ -123,7 +123,7 @@
     <button id="easyButton">Easy</button>
     <button id="mediumButton">Medium</button>
     <button id="hardButton">Hard</button>
-    <!-- For iOS 13+ motion permission -->
+    <!-- For iOS 13+ motion permission (only shown on mobile) -->
     <button id="motionButton" style="display: none;">Enable Motion Controls</button>
   </div>
   <div id="pauseOverlay" class="overlay" style="display: none;">
@@ -191,8 +191,11 @@
     let useMotion = false;
     let currentTilt = 0; // holds device orientation value
 
-    // Theme (always dark for mobile)
+    // Theme (always dark)
     let isDarkMode = true;
+
+    // Detect if mobile (we use this to disable motion controls on desktop)
+    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 
     // === RESIZE HANDLERS ===
     function resizeCanvas() {
@@ -270,7 +273,7 @@
     rightControl.addEventListener('touchstart', (e) => { e.preventDefault(); moveRight = true; });
     rightControl.addEventListener('touchend', () => { moveRight = false; });
 
-    // === KEYBOARD CONTROLS (PC) ===
+    // === KEYBOARD CONTROLS (Desktop) ===
     document.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowLeft') moveLeft = true;
       if (e.key === 'ArrowRight') moveRight = true;
@@ -285,11 +288,8 @@
       if (e.key === 'ArrowRight') moveRight = false;
     });
 
-    // === DEVICE ORIENTATION (Mobile) ===
-    function handleOrientation(event) {
-      currentTilt = event.gamma || 0; // gamma gives left/right tilt
-    }
-    if (window.DeviceOrientationEvent) {
+    // === DEVICE ORIENTATION (Mobile Only) ===
+    if (isMobile && window.DeviceOrientationEvent) {
       // iOS 13+ requires permission
       if (typeof DeviceOrientationEvent.requestPermission === 'function') {
         motionButton.style.display = 'block';
@@ -303,10 +303,14 @@
           }).catch(console.error);
         });
       } else {
-        // For Android and other devices
         window.addEventListener('deviceorientation', handleOrientation);
         useMotion = true;
       }
+    } else {
+      useMotion = false;
+    }
+    function handleOrientation(event) {
+      currentTilt = event.gamma || 0; // gamma gives left/right tilt
     }
 
     // === GAME FUNCTIONS ===
@@ -369,6 +373,7 @@
     function drawCar() {
       ctx.fillStyle = 'red';
       ctx.fillRect(carX, carY, carWidth, carHeight);
+      // Draw simple wheels
       ctx.fillStyle = 'black';
       ctx.fillRect(carX + 5, carY + carHeight - 10, 10, 5);
       ctx.fillRect(carX + carWidth - 15, carY + carHeight - 10, 10, 5);
@@ -444,7 +449,8 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       drawRoad();
 
-      // Use device orientation if available; else use keyboard/touch input.
+      // If mobile and motion controls are enabled, use orientation;
+      // Otherwise use keyboard/touch input.
       if (useMotion) {
         const sensitivity = 4;
         carX += currentTilt * sensitivity * (deltaTime / 1000);
@@ -467,7 +473,7 @@
       requestAnimationFrame(gameLoop);
     }
 
-    // Initialize and show the difficulty overlay on load
+    // Initialize score display and show difficulty overlay on load
     updateScoreDisplay();
     difficultyOverlay.style.display = 'flex';
   </script>
