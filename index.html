@@ -8,11 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
   <style>
     /* Reset & Base Styles */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       height: 100%;
       font-family: 'Montserrat', sans-serif;
@@ -168,6 +164,13 @@
       background: linear-gradient(45deg, #0072ff, #00c6ff);
       transform: translateY(-3px);
     }
+    /* Additional button style for "Change Difficulty" */
+    .change-difficulty-btn {
+      background: linear-gradient(45deg, #ff5e62, #ff9966);
+    }
+    .change-difficulty-btn:hover {
+      background: linear-gradient(45deg, #ff9966, #ff5e62);
+    }
     /* Motion Control Button for iOS 13+ */
     #motionButton {
       font-size: 1.1rem;
@@ -233,15 +236,48 @@
     <h2>Paused</h2>
     <button id="resumeButton">Resume</button>
     <button id="resetButton">Reset</button>
+    <button id="changeDifficultyPause" class="change-difficulty-btn">Change Difficulty</button>
   </div>
   <div id="gameOverOverlay" class="overlay" style="display: none;">
     <h2>Game Over</h2>
     <p>Your score: <span id="finalScore"></span></p>
     <button id="restartButton">Restart</button>
+    <button id="changeDifficultyGameOver" class="change-difficulty-btn">Change Difficulty</button>
   </div>
 
   <script>
-    // === CANVAS SETUP ===
+    // --- CAR IMAGE SETUP ---
+    // Create image objects for the player's car and obstacles.
+    const playerCarImg = new Image();
+    const obstacleCarImg = new Image();
+    // Use relative paths (ensure your images are in an "images" folder in the same directory)
+    playerCarImg.src = "images/main%20car.png";
+    obstacleCarImg.src = "images/side%20car.png";
+
+    // We'll create offscreen canvases to extract collision masks.
+    let playerCollisionData = null;
+    let obstacleCollisionData = null;
+    function createCollisionMask(img, width, height, callback) {
+      const offscreen = document.createElement("canvas");
+      offscreen.width = width;
+      offscreen.height = height;
+      const offCtx = offscreen.getContext("2d");
+      offCtx.drawImage(img, 0, 0, width, height);
+      callback(offCtx.getImageData(0, 0, width, height).data);
+    }
+    // When images load, compute collision masks.
+    playerCarImg.onload = () => {
+      createCollisionMask(playerCarImg, carWidth, carHeight, (data) => {
+        playerCollisionData = data;
+      });
+    };
+    obstacleCarImg.onload = () => {
+      createCollisionMask(obstacleCarImg, carWidth, carHeight, (data) => {
+        obstacleCollisionData = data;
+      });
+    };
+
+    // --- CANVAS SETUP ---
     const backgroundCanvas = document.getElementById('backgroundCanvas');
     const bgCtx = backgroundCanvas.getContext('2d');
     const canvas = document.getElementById('gameCanvas');
@@ -261,8 +297,9 @@
     const leftControl = document.getElementById('leftControl');
     const rightControl = document.getElementById('rightControl');
 
-    // === GAME VARIABLES ===
-    const carWidth = 40, carHeight = 70;
+    // --- GAME VARIABLES ---
+    // Car dimensions for both player and obstacles.
+    const carWidth = 60, carHeight = 100;
     let carX = canvas.width / 2 - carWidth / 2;
     let carY = canvas.height - carHeight - 20;
     const carSpeed = 300; // pixels per second
@@ -294,7 +331,7 @@
     // Detect Mobile Device
     const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 
-    // === RESIZE HANDLERS ===
+    // --- RESIZE HANDLERS ---
     function resizeCanvas() {
       const availableWidth = window.innerWidth;
       const availableHeight = window.innerHeight;
@@ -317,7 +354,7 @@
     resizeCanvas();
     resizeBackgroundCanvas();
 
-    // === BACKGROUND STARS ===
+    // --- BACKGROUND STARS ---
     function initStars() {
       stars = [];
       for (let i = 0; i < numStars; i++) {
@@ -345,10 +382,20 @@
     }
     requestAnimationFrame(backgroundLoop);
 
-    // === EVENT LISTENERS FOR DIFFICULTY BUTTONS ===
+    // --- EVENT LISTENERS FOR DIFFICULTY BUTTONS ---
     document.getElementById('easyButton').addEventListener('click', () => setDifficulty('easy'));
     document.getElementById('mediumButton').addEventListener('click', () => setDifficulty('medium'));
     document.getElementById('hardButton').addEventListener('click', () => setDifficulty('hard'));
+
+    // Additional buttons in pause and game over overlays to change difficulty.
+    document.getElementById('changeDifficultyPause').addEventListener('click', () => {
+      pauseOverlay.style.display = 'none';
+      difficultyOverlay.style.display = 'flex';
+    });
+    document.getElementById('changeDifficultyGameOver').addEventListener('click', () => {
+      gameOverOverlay.style.display = 'none';
+      difficultyOverlay.style.display = 'flex';
+    });
 
     // Pause, Reset, Restart Buttons
     document.getElementById('resumeButton').addEventListener('click', resumeGame);
@@ -364,13 +411,13 @@
       }
     });
 
-    // === TOUCH CONTROLS (Mobile Fallback) ===
+    // --- TOUCH CONTROLS (Mobile Fallback) ---
     leftControl.addEventListener('touchstart', (e) => { e.preventDefault(); moveLeft = true; });
     leftControl.addEventListener('touchend', () => { moveLeft = false; });
     rightControl.addEventListener('touchstart', (e) => { e.preventDefault(); moveRight = true; });
     rightControl.addEventListener('touchend', () => { moveRight = false; });
 
-    // === KEYBOARD CONTROLS (Desktop) ===
+    // --- KEYBOARD CONTROLS (Desktop) ---
     document.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowLeft') moveLeft = true;
       if (e.key === 'ArrowRight') moveRight = true;
@@ -385,7 +432,7 @@
       if (e.key === 'ArrowRight') moveRight = false;
     });
 
-    // === DEVICE ORIENTATION (Mobile Only) ===
+    // --- DEVICE ORIENTATION (Mobile Only) ---
     if (isMobile && window.DeviceOrientationEvent) {
       if (typeof DeviceOrientationEvent.requestPermission === 'function') {
         motionButton.style.display = 'block';
@@ -409,20 +456,44 @@
       currentTilt = event.gamma || 0;
     }
 
-    // === GAME FUNCTIONS ===
+    // --- PIXEL-PERFECT COLLISION DETECTION ---
+    function pixelCollision(x1, y1, x2, y2) {
+      const overlapX = Math.max(x1, x2);
+      const overlapY = Math.max(y1, y2);
+      const overlapX2 = Math.min(x1 + carWidth, x2 + carWidth);
+      const overlapY2 = Math.min(y1 + carHeight, y2 + carHeight);
+      const overlapWidth = overlapX2 - overlapX;
+      const overlapHeight = overlapY2 - overlapY;
+      if (overlapWidth <= 0 || overlapHeight <= 0) return false;
+      for (let j = 0; j < overlapHeight; j++) {
+        for (let i = 0; i < overlapWidth; i++) {
+          const px = Math.floor(overlapX - x1 + i);
+          const py = Math.floor(overlapY - y1 + j);
+          const playerIndex = (py * carWidth + px) * 4;
+          const alphaPlayer = playerCollisionData ? playerCollisionData[playerIndex + 3] : 0;
+          const ox = Math.floor(overlapX - x2 + i);
+          const oy = Math.floor(overlapY - y2 + j);
+          const obstacleIndex = (oy * carWidth + ox) * 4;
+          const alphaObstacle = obstacleCollisionData ? obstacleCollisionData[obstacleIndex + 3] : 0;
+          if (alphaPlayer > 0 && alphaObstacle > 0) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    // --- GAME FUNCTIONS ---
     function setDifficulty(selectedDifficulty) {
       difficulty = selectedDifficulty;
-      // Set base speeds based on chosen difficulty
       baseObstacleSpeed = difficulty === 'easy' ? 100 : difficulty === 'medium' ? 180 : 250;
       baseObstacleInterval = difficulty === 'easy' ? 2000 : difficulty === 'medium' ? 1500 : 1000;
-      // If mobile, increase difficulty by 60%
       if(isMobile) {
         baseObstacleSpeed *= 1.6;
         baseObstacleInterval = Math.floor(baseObstacleInterval * 0.6);
       }
       obstacleSpeed = baseObstacleSpeed;
       obstacleInterval = baseObstacleInterval;
-      // Hide difficulty overlay and start game
       difficultyOverlay.style.display = 'none';
       startGame();
     }
@@ -461,11 +532,9 @@
       gamePaused = false;
       pauseOverlay.style.display = 'none';
       gameOverOverlay.style.display = 'none';
-      if (!gameRunning) {
-        gameRunning = true;
-        lastFrameTime = performance.now();
-        requestAnimationFrame(gameLoop);
-      }
+      gameRunning = true;
+      lastFrameTime = performance.now();
+      requestAnimationFrame(gameLoop);
     }
     function gameOver() {
       gameRunning = false;
@@ -473,24 +542,30 @@
       gameOverOverlay.style.display = 'flex';
       if (navigator.vibrate) navigator.vibrate(100);
     }
+    // --- DRAWING FUNCTIONS ---
     function drawCar() {
-      ctx.fillStyle = 'red';
-      ctx.fillRect(carX, carY, carWidth, carHeight);
-      ctx.fillStyle = 'black';
-      ctx.fillRect(carX + 5, carY + carHeight - 10, 10, 5);
-      ctx.fillRect(carX + carWidth - 15, carY + carHeight - 10, 10, 5);
+      if (playerCarImg.complete) {
+        ctx.drawImage(playerCarImg, carX, carY, carWidth, carHeight);
+      } else {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(carX, carY, carWidth, carHeight);
+      }
+    }
+    function drawObstacles() {
+      obstacles.forEach(obstacle => {
+        if (obstacleCarImg.complete) {
+          ctx.drawImage(obstacleCarImg, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        } else {
+          ctx.fillStyle = 'blue';
+          ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        }
+      });
     }
     function createObstacle() {
-      const width = 40, height = 70;
+      const width = 60, height = 100;
       const x = Math.random() * (canvas.width - width - roadMargin * 2) + roadMargin;
       const y = -height;
       return { x, y, width, height, speed: obstacleSpeed };
-    }
-    function drawObstacles() {
-      ctx.fillStyle = 'blue';
-      obstacles.forEach(obstacle => {
-        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-      });
     }
     function updateObstacles(deltaTime) {
       obstacles.forEach(obstacle => {
@@ -506,8 +581,15 @@
           carY < obstacle.y + obstacle.height &&
           carY + carHeight > obstacle.y
         ) {
-          gameOver();
-          break;
+          if (playerCollisionData && obstacleCollisionData) {
+            if (pixelCollision(carX, carY, obstacle.x, obstacle.y)) {
+              gameOver();
+              break;
+            }
+          } else {
+            gameOver();
+            break;
+          }
         }
       }
     }
@@ -542,7 +624,7 @@
       roadLineOffset += 2;
     }
 
-    // === MAIN GAME LOOP ===
+    // --- MAIN GAME LOOP ---
     function gameLoop(timestamp) {
       if (!gameRunning || gamePaused) return;
       const deltaTime = timestamp - lastFrameTime;
@@ -550,8 +632,6 @@
       ctx.fillStyle = isDarkMode ? '#222' : '#ddd';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       drawRoad();
-
-      // Use increased gyro sensitivity on mobile if enabled
       if (useMotion) {
         const sensitivity = isMobile ? 8 : 4;
         carX += currentTilt * sensitivity * (deltaTime / 1000);
@@ -560,7 +640,6 @@
         if (moveRight) carX += carSpeed * deltaTime / 1000;
       }
       carX = Math.max(roadMargin, Math.min(carX, canvas.width - roadMargin - carWidth));
-
       if (timestamp - lastObstacleTime > obstacleInterval) {
         obstacles.push(createObstacle());
         lastObstacleTime = timestamp;
@@ -570,11 +649,10 @@
       drawCar();
       checkCollisions();
       updateScore();
-
       requestAnimationFrame(gameLoop);
     }
 
-    // Start: Show splash screen, then fade out and display difficulty overlay
+    // --- STARTUP SEQUENCE ---
     updateScoreDisplay();
     splashOverlay.style.display = 'flex';
     setTimeout(() => {
