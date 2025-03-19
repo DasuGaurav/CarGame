@@ -92,18 +92,17 @@
       background: linear-gradient(45deg, #e52e71, #ff8a00);
       transform: scale(1.05);
     }
-    /* Media Query: On mobile, reposition score display & full screen button */
+    /* Media Query: Mobile adjustments */
     @media (max-width: 600px) {
-      /* Score display moves to top right */
+      /* Score display centered at the top */
       #scoreDisplay {
         top: 10px;
-        right: 10px;
-        left: auto;
-        transform: none;
+        left: 50%;
+        transform: translateX(-50%);
         font-size: 1.4rem;
         padding: 10px 16px;
       }
-      /* Full screen button moves to top left and becomes a bit larger */
+      /* Fullscreen button moved to top left */
       #fullscreenButton {
         top: 10px;
         left: 10px;
@@ -416,10 +415,10 @@
       // Set base speeds based on chosen difficulty
       baseObstacleSpeed = difficulty === 'easy' ? 100 : difficulty === 'medium' ? 180 : 250;
       baseObstacleInterval = difficulty === 'easy' ? 2000 : difficulty === 'medium' ? 1500 : 1000;
-      // If mobile, further increase difficulty by increasing speed and reducing interval
+      // If mobile, increase difficulty by 60%
       if(isMobile) {
-        baseObstacleSpeed *= 1.5;
-        baseObstacleInterval = Math.floor(baseObstacleInterval * 0.7);
+        baseObstacleSpeed *= 1.6;
+        baseObstacleInterval = Math.floor(baseObstacleInterval * 0.6);
       }
       obstacleSpeed = baseObstacleSpeed;
       obstacleInterval = baseObstacleInterval;
@@ -552,7 +551,7 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       drawRoad();
 
-      // Increase gyro sensitivity on mobile if motion is enabled
+      // Use increased gyro sensitivity on mobile if enabled
       if (useMotion) {
         const sensitivity = isMobile ? 8 : 4;
         carX += currentTilt * sensitivity * (deltaTime / 1000);
