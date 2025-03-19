@@ -1,72 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Mobile & PC Optimized Car Game</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Cool Car Game</title>
+  <!-- Import Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: Arial, sans-serif;
+    /* Reset & Base Styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      height: 100%;
+      font-family: 'Montserrat', sans-serif;
       overflow: hidden;
-      background: #111;
+      /* Animated gradient background */
+      background: linear-gradient(-45deg, #1e1e1e, #2a2a2a, #444, #2a2a2a);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
       color: #fff;
     }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    /* Container */
     #gameContainer {
       position: relative;
       width: 100vw;
       height: 100vh;
-      background: #111;
+      background: transparent;
     }
+    /* Background Canvas Animation (stars are drawn dynamically) */
     #backgroundCanvas {
       position: absolute;
       top: 0;
       left: 0;
       z-index: -1;
     }
+    /* Game Canvas Styling */
     #gameCanvas {
-      border: 3px solid #fff;
+      border: 5px solid #fff;
+      border-radius: 10px;
       position: absolute;
       z-index: 1;
-      background: #222;
-      display: block;
-      margin: auto;
+      background: rgba(30, 30, 30, 0.95);
+      box-shadow: 0 0 25px rgba(0, 0, 0, 0.7);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    .overlay {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.8);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 20;
+    #gameCanvas:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
     }
-    .overlay h1, .overlay h2 {
-      margin-bottom: 20px;
-    }
-    .overlay button {
-      padding: 12px 24px;
-      margin: 10px;
-      font-size: 20px;
-      cursor: pointer;
-      background: #fff;
-      border: none;
-      border-radius: 5px;
-      transition: background 0.3s;
-    }
-    .overlay button:hover { background: #ddd; }
+    /* Score Display */
     #scoreDisplay {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      font-size: 22px;
+      top: 20px;
+      left: 20px;
+      font-size: 1.2rem;
+      text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
       z-index: 10;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 8px 12px;
+      border-radius: 5px;
+      animation: pulse 1.5s infinite;
     }
-    /* Touch zones for mobile (cover left/right halves) */
-    #leftControl, #rightControl {
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    /* Full Screen Button */
+    #fullscreenButton {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 30;
+      padding: 10px 20px;
+      font-size: 1rem;
+      background: linear-gradient(45deg, #ff8a00, #e52e71);
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    }
+    #fullscreenButton:hover {
+      background: linear-gradient(45deg, #e52e71, #ff8a00);
+      transform: scale(1.05);
+    }
+    /* Touch Zones for Mobile */
+    #leftControl,
+    #rightControl {
       position: absolute;
       bottom: 0;
       width: 50%;
@@ -76,33 +104,55 @@
     }
     #leftControl { left: 0; }
     #rightControl { right: 0; }
-    /* Full-screen button */
-    #fullscreenButton {
+    /* Overlay Styles */
+    .overlay {
       position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 30;
-      padding: 10px 15px;
-      font-size: 18px;
-      background: #fff;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    /* Motion control permission overlay (for iOS 13+) */
-    #motionOverlay {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.9);
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 10, 10, 0.95);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       z-index: 40;
+      animation: fadeIn 0.5s ease-out;
+      padding: 20px;
+      text-align: center;
     }
-    #motionOverlay button {
-      font-size: 20px;
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .overlay h1, .overlay h2 {
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7);
+    }
+    .overlay p {
+      font-size: 1.1rem;
+      margin-bottom: 20px;
+    }
+    .overlay button {
+      padding: 12px 24px;
+      margin: 10px;
+      font-size: 1rem;
+      cursor: pointer;
+      background: linear-gradient(45deg, #00c6ff, #0072ff);
+      border: none;
+      border-radius: 5px;
+      transition: background 0.3s, transform 0.2s;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+      color: #fff;
+    }
+    .overlay button:hover {
+      background: linear-gradient(45deg, #0072ff, #00c6ff);
+      transform: translateY(-3px);
+    }
+    /* Motion Control Button for iOS 13+ */
+    #motionButton {
+      font-size: 1.1rem;
+      margin-top: 20px;
     }
   </style>
 </head>
@@ -123,7 +173,7 @@
     <button id="easyButton">Easy</button>
     <button id="mediumButton">Medium</button>
     <button id="hardButton">Hard</button>
-    <!-- For iOS 13+ motion permission (only shown on mobile) -->
+    <!-- For iOS 13+ motion permission (only on mobile) -->
     <button id="motionButton" style="display: none;">Enable Motion Controls</button>
   </div>
   <div id="pauseOverlay" class="overlay" style="display: none;">
@@ -158,13 +208,11 @@
     const rightControl = document.getElementById('rightControl');
 
     // === GAME VARIABLES ===
-    // Car properties
     const carWidth = 40, carHeight = 70;
     let carX = canvas.width / 2 - carWidth / 2;
     let carY = canvas.height - carHeight - 20;
     const carSpeed = 300; // pixels per second
 
-    // Obstacle properties
     let obstacles = [];
     let baseObstacleSpeed = 180;
     let obstacleSpeed = baseObstacleSpeed;
@@ -172,29 +220,24 @@
     let obstacleInterval = baseObstacleInterval;
     let lastObstacleTime = 0;
 
-    // Game state
     let score = 0, level = 1, highScore = 0;
     let gameRunning = false, gamePaused = false;
     let lastFrameTime = 0;
     let difficulty = 'medium';
 
-    // Road properties
     const roadMargin = 50;
     let roadLineOffset = 0;
 
-    // Background stars
     let stars = [];
     const numStars = 100;
 
-    // Input handling
     let moveLeft = false, moveRight = false;
     let useMotion = false;
-    let currentTilt = 0; // holds device orientation value
+    let currentTilt = 0;
 
-    // Theme (always dark)
     let isDarkMode = true;
 
-    // Detect if mobile (we use this to disable motion controls on desktop)
+    // Detect Mobile Device
     const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 
     // === RESIZE HANDLERS ===
@@ -253,7 +296,7 @@
     document.getElementById('mediumButton').addEventListener('click', () => setDifficulty('medium'));
     document.getElementById('hardButton').addEventListener('click', () => setDifficulty('hard'));
 
-    // Pause, Reset, and Restart Buttons
+    // Pause, Reset, Restart Buttons
     document.getElementById('resumeButton').addEventListener('click', resumeGame);
     document.getElementById('resetButton').addEventListener('click', resetGame);
     document.getElementById('restartButton').addEventListener('click', resetGame);
@@ -290,7 +333,6 @@
 
     // === DEVICE ORIENTATION (Mobile Only) ===
     if (isMobile && window.DeviceOrientationEvent) {
-      // iOS 13+ requires permission
       if (typeof DeviceOrientationEvent.requestPermission === 'function') {
         motionButton.style.display = 'block';
         motionButton.addEventListener('click', () => {
@@ -310,7 +352,7 @@
       useMotion = false;
     }
     function handleOrientation(event) {
-      currentTilt = event.gamma || 0; // gamma gives left/right tilt
+      currentTilt = event.gamma || 0;
     }
 
     // === GAME FUNCTIONS ===
@@ -373,7 +415,6 @@
     function drawCar() {
       ctx.fillStyle = 'red';
       ctx.fillRect(carX, carY, carWidth, carHeight);
-      // Draw simple wheels
       ctx.fillStyle = 'black';
       ctx.fillRect(carX + 5, carY + carHeight - 10, 10, 5);
       ctx.fillRect(carX + carWidth - 15, carY + carHeight - 10, 10, 5);
@@ -449,8 +490,6 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       drawRoad();
 
-      // If mobile and motion controls are enabled, use orientation;
-      // Otherwise use keyboard/touch input.
       if (useMotion) {
         const sensitivity = 4;
         carX += currentTilt * sensitivity * (deltaTime / 1000);
@@ -473,7 +512,6 @@
       requestAnimationFrame(gameLoop);
     }
 
-    // Initialize score display and show difficulty overlay on load
     updateScoreDisplay();
     difficultyOverlay.style.display = 'flex';
   </script>
