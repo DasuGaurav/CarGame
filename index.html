@@ -92,6 +92,14 @@
       background: linear-gradient(45deg, #e52e71, #ff8a00);
       transform: scale(1.05);
     }
+    /* Media Query: On mobile, reposition full screen button to bottom-right */
+    @media (max-width: 600px) {
+      #fullscreenButton {
+        top: auto;
+        bottom: 20px;
+        right: 20px;
+      }
+    }
     /* Touch Zones for Mobile */
     #leftControl,
     #rightControl {
@@ -154,6 +162,34 @@
       font-size: 1.1rem;
       margin-top: 20px;
     }
+    /* SPLASH OVERLAY STYLES */
+    #splashOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.95);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 50;
+      animation: splashFadeIn 1s ease-out;
+    }
+    @keyframes splashFadeIn {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    #splashOverlay h1 {
+      font-size: 3rem;
+      margin-bottom: 20px;
+      text-shadow: 4px 4px 10px rgba(0,0,0,0.7);
+    }
+    #splashOverlay p {
+      font-size: 1.2rem;
+      color: #aaa;
+    }
   </style>
 </head>
 <body>
@@ -167,8 +203,14 @@
     <div id="rightControl"></div>
   </div>
 
+  <!-- Splash Screen Overlay -->
+  <div id="splashOverlay">
+    <h1>Car Game</h1>
+    <p>Get Ready to Race!</p>
+  </div>
+
   <!-- Overlays -->
-  <div id="difficultyOverlay" class="overlay">
+  <div id="difficultyOverlay" class="overlay" style="display: none;">
     <h1>Select Difficulty</h1>
     <button id="easyButton">Easy</button>
     <button id="mediumButton">Medium</button>
@@ -197,6 +239,7 @@
     const fullscreenButton = document.getElementById('fullscreenButton');
 
     // Overlays
+    const splashOverlay = document.getElementById('splashOverlay');
     const difficultyOverlay = document.getElementById('difficultyOverlay');
     const pauseOverlay = document.getElementById('pauseOverlay');
     const gameOverOverlay = document.getElementById('gameOverOverlay');
@@ -362,6 +405,7 @@
       baseObstacleInterval = difficulty === 'easy' ? 2000 : difficulty === 'medium' ? 1500 : 1000;
       obstacleSpeed = baseObstacleSpeed;
       obstacleInterval = baseObstacleInterval;
+      // Show the difficulty overlay is already hidden by splash end.
       difficultyOverlay.style.display = 'none';
       startGame();
     }
@@ -512,8 +556,18 @@
       requestAnimationFrame(gameLoop);
     }
 
+    // Start: Show splash screen, then after 3 seconds fade it out and display difficulty overlay
     updateScoreDisplay();
-    difficultyOverlay.style.display = 'flex';
+    splashOverlay.style.display = 'flex';
+    setTimeout(() => {
+      // Fade out splash overlay (using CSS transition)
+      splashOverlay.style.transition = 'opacity 1s ease-out';
+      splashOverlay.style.opacity = 0;
+      setTimeout(() => {
+        splashOverlay.style.display = 'none';
+        difficultyOverlay.style.display = 'flex';
+      }, 1000);
+    }, 3000);
   </script>
 </body>
 </html>
