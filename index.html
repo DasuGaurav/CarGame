@@ -3,27 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Enhanced Car Game</title>
+  <title>Mobile & PC Optimized Car Game</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
       font-family: Arial, sans-serif;
-      color: #fff;
       overflow: hidden;
-      background: #111; /* Default dark mode */
+      background: #111;
+      color: #fff;
     }
     #gameContainer {
       position: relative;
       width: 100vw;
       height: 100vh;
+      background: #111;
     }
     #backgroundCanvas {
       position: absolute;
@@ -35,15 +28,16 @@
       border: 3px solid #fff;
       position: absolute;
       z-index: 1;
-      background: #222; /* Default dark mode canvas */
+      background: #222;
+      display: block;
+      margin: auto;
     }
     .overlay {
       position: absolute;
-      top: 0;
-      left: 0;
+      top: 0; left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0,0,0,0.8);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -53,96 +47,84 @@
     .overlay h1, .overlay h2 {
       margin-bottom: 20px;
     }
-    .overlay p {
-      font-size: 24px;
-      margin-bottom: 10px;
-    }
     .overlay button {
-      padding: 10px 20px;
+      padding: 12px 24px;
       margin: 10px;
-      font-size: 18px;
+      font-size: 20px;
       cursor: pointer;
       background: #fff;
       border: none;
       border-radius: 5px;
       transition: background 0.3s;
     }
-    .overlay button:hover {
-      background: #ddd;
-    }
+    .overlay button:hover { background: #ddd; }
     #scoreDisplay {
       position: absolute;
       top: 10px;
       left: 10px;
-      font-size: 24px;
+      font-size: 22px;
       z-index: 10;
     }
-    #menuButton {
+    /* Touch zones for mobile (cover left/right halves) */
+    #leftControl, #rightControl {
+      position: absolute;
+      bottom: 0;
+      width: 50%;
+      height: 40%;
+      background: transparent;
+      z-index: 10;
+    }
+    #leftControl { left: 0; }
+    #rightControl { right: 0; }
+    /* Full-screen button */
+    #fullscreenButton {
       position: absolute;
       top: 10px;
       right: 10px;
-      font-size: 24px;
-      cursor: pointer;
       z-index: 30;
+      padding: 10px 15px;
+      font-size: 18px;
+      background: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
     }
-    #sidebarMenu {
+    /* Motion control permission overlay (for iOS 13+) */
+    #motionOverlay {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background: rgba(0,0,0,0.9);
-      display: none;
+      display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 20;
+      z-index: 40;
     }
-    #leftControl, #rightControl {
-      position: absolute;
-      bottom: 10px;
-      width: 100px;
-      height: 50px;
-      background: #fff;
-      opacity: 0.5;
-      z-index: 10;
-      display: none;
-    }
-    #leftControl {
-      left: 10px;
-    }
-    #rightControl {
-      right: 10px;
-    }
-    @media (max-width: 768px) {
-      #leftControl, #rightControl {
-        display: block;
-      }
+    #motionOverlay button {
+      font-size: 20px;
     }
   </style>
 </head>
 <body>
   <canvas id="backgroundCanvas"></canvas>
   <div id="gameContainer">
-    <div id="menuButton">☰</div>
-    <div id="sidebarMenu" class="overlay">
-      <h2>Menu</h2>
-      <button id="resumeMenuButton">Resume</button>
-      <button id="pauseMenuButton">Pause</button>
-      <button id="resetMenuButton">Reset</button>
-      <button id="difficultyMenuButton">Select Difficulty</button>
-      <button id="themeMenuButton">Toggle Theme</button>
-    </div>
     <canvas id="gameCanvas" width="600" height="800"></canvas>
+    <div id="scoreDisplay">Score: 0 | Level: 1 | High Score: 0</div>
+    <button id="fullscreenButton">Full Screen</button>
+    <!-- Touch zones -->
     <div id="leftControl"></div>
     <div id="rightControl"></div>
-    <div id="scoreDisplay">Score: 0 | Level: 1 | High Score: 0</div>
   </div>
+
+  <!-- Overlays -->
   <div id="difficultyOverlay" class="overlay">
     <h1>Select Difficulty</h1>
     <button id="easyButton">Easy</button>
     <button id="mediumButton">Medium</button>
     <button id="hardButton">Hard</button>
+    <!-- For iOS 13+ motion permission -->
+    <button id="motionButton" style="display: none;">Enable Motion Controls</button>
   </div>
   <div id="pauseOverlay" class="overlay" style="display: none;">
     <h2>Paused</h2>
@@ -152,67 +134,90 @@
   <div id="gameOverOverlay" class="overlay" style="display: none;">
     <h2>Game Over</h2>
     <p>Your score: <span id="finalScore"></span></p>
-    <p>Press 'R' to restart</p>
+    <button id="restartButton">Restart</button>
   </div>
 
   <script>
-    // Background Canvas for Stars
+    // === CANVAS SETUP ===
     const backgroundCanvas = document.getElementById('backgroundCanvas');
     const bgCtx = backgroundCanvas.getContext('2d');
-
-    // Game Canvas & UI Elements
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const scoreDisplay = document.getElementById('scoreDisplay');
+    const fullscreenButton = document.getElementById('fullscreenButton');
+
+    // Overlays
     const difficultyOverlay = document.getElementById('difficultyOverlay');
     const pauseOverlay = document.getElementById('pauseOverlay');
     const gameOverOverlay = document.getElementById('gameOverOverlay');
     const finalScore = document.getElementById('finalScore');
-    const menuButton = document.getElementById('menuButton');
-    const sidebarMenu = document.getElementById('sidebarMenu');
+    const motionButton = document.getElementById('motionButton');
+
+    // Touch Controls
     const leftControl = document.getElementById('leftControl');
     const rightControl = document.getElementById('rightControl');
 
-    // Car Properties
-    const carWidth = 40;
-    const carHeight = 70;
+    // === GAME VARIABLES ===
+    // Car properties
+    const carWidth = 40, carHeight = 70;
     let carX = canvas.width / 2 - carWidth / 2;
     let carY = canvas.height - carHeight - 20;
     const carSpeed = 300; // pixels per second
-    let currentCarModel = 'eon'; // Default car model
 
-    // Obstacle Properties
+    // Obstacle properties
     let obstacles = [];
-    let baseObstacleSpeed = 180; // Default medium difficulty
+    let baseObstacleSpeed = 180;
     let obstacleSpeed = baseObstacleSpeed;
-    let baseObstacleInterval = 1500; // in milliseconds
+    let baseObstacleInterval = 1500;
     let obstacleInterval = baseObstacleInterval;
     let lastObstacleTime = 0;
 
-    // Game Properties
-    let score = 0;
-    let level = 1;
-    let highScore = 0;
-    let gameRunning = false;
-    let gamePaused = false;
+    // Game state
+    let score = 0, level = 1, highScore = 0;
+    let gameRunning = false, gamePaused = false;
     let lastFrameTime = 0;
-    let difficulty = 'medium'; // Default difficulty
+    let difficulty = 'medium';
 
-    // Road Properties
+    // Road properties
     const roadMargin = 50;
     let roadLineOffset = 0;
 
-    // Background Stars
+    // Background stars
     let stars = [];
     const numStars = 100;
 
-    // Input Handling
-    let keys = {};
+    // Input handling
+    let moveLeft = false, moveRight = false;
+    let useMotion = false;
+    let currentTilt = 0; // holds device orientation value
 
-    // Theme
+    // Theme (always dark for mobile)
     let isDarkMode = true;
 
-    // Initialize stars for background
+    // === RESIZE HANDLERS ===
+    function resizeCanvas() {
+      const availableWidth = window.innerWidth;
+      const availableHeight = window.innerHeight;
+      const scale = Math.min(availableWidth / 600, availableHeight / 800);
+      canvas.style.width = (600 * scale) + 'px';
+      canvas.style.height = (800 * scale) + 'px';
+      canvas.style.position = 'absolute';
+      canvas.style.left = ((availableWidth - 600 * scale) / 2) + 'px';
+      canvas.style.top = ((availableHeight - 800 * scale) / 2) + 'px';
+    }
+    function resizeBackgroundCanvas() {
+      backgroundCanvas.width = window.innerWidth;
+      backgroundCanvas.height = window.innerHeight;
+      initStars();
+    }
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+      resizeBackgroundCanvas();
+    });
+    resizeCanvas();
+    resizeBackgroundCanvas();
+
+    // === BACKGROUND STARS ===
     function initStars() {
       stars = [];
       for (let i = 0; i < numStars; i++) {
@@ -224,8 +229,6 @@
         });
       }
     }
-
-    // Draw stars on background canvas with twinkling effect
     function drawStars(timestamp) {
       bgCtx.clearRect(0, 0, backgroundCanvas.width, backgroundCanvas.height);
       bgCtx.fillStyle = 'white';
@@ -236,117 +239,95 @@
         bgCtx.fill();
       });
     }
-
-    // Background animation loop
     function backgroundLoop(timestamp) {
       drawStars(timestamp);
       requestAnimationFrame(backgroundLoop);
     }
-
-    // Start background animation
-    initStars();
     requestAnimationFrame(backgroundLoop);
 
-    // Event Listeners for Buttons
+    // === EVENT LISTENERS FOR DIFFICULTY BUTTONS ===
     document.getElementById('easyButton').addEventListener('click', () => setDifficulty('easy'));
     document.getElementById('mediumButton').addEventListener('click', () => setDifficulty('medium'));
     document.getElementById('hardButton').addEventListener('click', () => setDifficulty('hard'));
+
+    // Pause, Reset, and Restart Buttons
     document.getElementById('resumeButton').addEventListener('click', resumeGame);
     document.getElementById('resetButton').addEventListener('click', resetGame);
-    document.getElementById('resumeMenuButton').addEventListener('click', resumeGame);
-    document.getElementById('pauseMenuButton').addEventListener('click', pauseGame);
-    document.getElementById('resetMenuButton').addEventListener('click', resetGame);
-    document.getElementById('difficultyMenuButton').addEventListener('click', showDifficultyOverlay);
-    document.getElementById('themeMenuButton').addEventListener('click', toggleTheme);
+    document.getElementById('restartButton').addEventListener('click', resetGame);
 
-    // Menu Button Toggle
-    menuButton.addEventListener('click', () => {
-      if (sidebarMenu.style.display === 'flex') {
-        sidebarMenu.style.display = 'none';
+    // Full-Screen Toggle
+    fullscreenButton.addEventListener('click', () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
       } else {
-        // Update buttons based on game state
-        if (gameRunning && !gamePaused) {
-          document.getElementById('pauseMenuButton').style.display = 'block';
-          document.getElementById('resumeMenuButton').style.display = 'none';
-        } else if (gamePaused) {
-          document.getElementById('pauseMenuButton').style.display = 'none';
-          document.getElementById('resumeMenuButton').style.display = 'block';
-        } else {
-          document.getElementById('pauseMenuButton').style.display = 'none';
-          document.getElementById('resumeMenuButton').style.display = 'none';
-        }
-        sidebarMenu.style.display = 'flex';
+        document.documentElement.requestFullscreen();
       }
     });
 
-    // Touch Controls
-    leftControl.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      keys['ArrowLeft'] = true;
-    }, { passive: false });
-    leftControl.addEventListener('touchend', () => {
-      keys['ArrowLeft'] = false;
-    });
-    leftControl.addEventListener('mousedown', () => {
-      keys['ArrowLeft'] = true;
-    });
-    leftControl.addEventListener('mouseup', () => {
-      keys['ArrowLeft'] = false;
-    });
+    // === TOUCH CONTROLS (Mobile Fallback) ===
+    leftControl.addEventListener('touchstart', (e) => { e.preventDefault(); moveLeft = true; });
+    leftControl.addEventListener('touchend', () => { moveLeft = false; });
+    rightControl.addEventListener('touchstart', (e) => { e.preventDefault(); moveRight = true; });
+    rightControl.addEventListener('touchend', () => { moveRight = false; });
 
-    rightControl.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      keys['ArrowRight'] = true;
-    }, { passive: false });
-    rightControl.addEventListener('touchend', () => {
-      keys['ArrowRight'] = false;
-    });
-    rightControl.addEventListener('mousedown', () => {
-      keys['ArrowRight'] = true;
-    });
-    rightControl.addEventListener('mouseup', () => {
-      keys['ArrowRight'] = false;
-    });
-
-    // Keyboard Event Listeners
+    // === KEYBOARD CONTROLS (PC) ===
     document.addEventListener('keydown', (e) => {
-      keys[e.key] = true;
+      if (e.key === 'ArrowLeft') moveLeft = true;
+      if (e.key === 'ArrowRight') moveRight = true;
+      if (e.key === 'p' || e.key === 'Escape') {
+        gamePaused ? resumeGame() : pauseGame();
+      }
       if (!gameRunning && e.key === 'Enter') startGame();
       if (e.key === 'r') resetGame();
-      if (gameRunning) {
-        if ((e.key === 'p' || e.key === 'Escape') && !gamePaused) pauseGame();
-        else if ((e.key === 'p' || e.key === 'Escape') && gamePaused) resumeGame();
-      }
     });
-
     document.addEventListener('keyup', (e) => {
-      keys[e.key] = false;
+      if (e.key === 'ArrowLeft') moveLeft = false;
+      if (e.key === 'ArrowRight') moveRight = false;
     });
 
-    // Set Difficulty
+    // === DEVICE ORIENTATION (Mobile) ===
+    function handleOrientation(event) {
+      currentTilt = event.gamma || 0; // gamma gives left/right tilt
+    }
+    if (window.DeviceOrientationEvent) {
+      // iOS 13+ requires permission
+      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        motionButton.style.display = 'block';
+        motionButton.addEventListener('click', () => {
+          DeviceOrientationEvent.requestPermission().then(permissionState => {
+            if (permissionState === 'granted') {
+              window.addEventListener('deviceorientation', handleOrientation);
+              useMotion = true;
+              motionButton.style.display = 'none';
+            }
+          }).catch(console.error);
+        });
+      } else {
+        // For Android and other devices
+        window.addEventListener('deviceorientation', handleOrientation);
+        useMotion = true;
+      }
+    }
+
+    // === GAME FUNCTIONS ===
     function setDifficulty(selectedDifficulty) {
       difficulty = selectedDifficulty;
       baseObstacleSpeed = difficulty === 'easy' ? 100 : difficulty === 'medium' ? 180 : 250;
       baseObstacleInterval = difficulty === 'easy' ? 2000 : difficulty === 'medium' ? 1500 : 1000;
       obstacleSpeed = baseObstacleSpeed;
       obstacleInterval = baseObstacleInterval;
+      difficultyOverlay.style.display = 'none';
       startGame();
     }
-
-    // Start the game
     function startGame() {
-      difficultyOverlay.style.display = 'none';
-      pauseOverlay.style.display = 'none';
       gameOverOverlay.style.display = 'none';
-      sidebarMenu.style.display = 'none';
+      pauseOverlay.style.display = 'none';
       gameRunning = true;
       gamePaused = false;
       resetGameState();
       lastFrameTime = performance.now();
       requestAnimationFrame(gameLoop);
     }
-
-    // Reset game state
     function resetGameState() {
       carX = canvas.width / 2 - carWidth / 2;
       carY = canvas.height - carHeight - 20;
@@ -358,80 +339,58 @@
       lastObstacleTime = performance.now();
       updateScoreDisplay();
     }
-
-    // Pause the game
     function pauseGame() {
       gamePaused = true;
       pauseOverlay.style.display = 'flex';
-      sidebarMenu.style.display = 'none';
     }
-
-    // Resume the game
     function resumeGame() {
       gamePaused = false;
       pauseOverlay.style.display = 'none';
-      sidebarMenu.style.display = 'none';
       lastFrameTime = performance.now();
       requestAnimationFrame(gameLoop);
     }
-
-    // Reset the game
     function resetGame() {
       resetGameState();
       gamePaused = false;
       pauseOverlay.style.display = 'none';
       gameOverOverlay.style.display = 'none';
-      sidebarMenu.style.display = 'none';
       if (!gameRunning) {
         gameRunning = true;
         lastFrameTime = performance.now();
         requestAnimationFrame(gameLoop);
       }
     }
-
-    // Game over
     function gameOver() {
       gameRunning = false;
       finalScore.textContent = score;
       gameOverOverlay.style.display = 'flex';
-      sidebarMenu.style.display = 'none';
+      if (navigator.vibrate) navigator.vibrate(100);
     }
-
-    // Draw the car
     function drawCar() {
       ctx.fillStyle = 'red';
       ctx.fillRect(carX, carY, carWidth, carHeight);
       ctx.fillStyle = 'black';
-      ctx.fillRect(carX + 5, carY + carHeight - 10, 10, 5); // Left wheel
-      ctx.fillRect(carX + carWidth - 15, carY + carHeight - 10, 10, 5); // Right wheel
+      ctx.fillRect(carX + 5, carY + carHeight - 10, 10, 5);
+      ctx.fillRect(carX + carWidth - 15, carY + carHeight - 10, 10, 5);
     }
-
-    // Create an obstacle
     function createObstacle() {
-      const width = 40;
-      const height = 70;
+      const width = 40, height = 70;
       const x = Math.random() * (canvas.width - width - roadMargin * 2) + roadMargin;
       const y = -height;
       return { x, y, width, height, speed: obstacleSpeed };
     }
-
-    // Draw obstacles
     function drawObstacles() {
       ctx.fillStyle = 'blue';
       obstacles.forEach(obstacle => {
         ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
       });
     }
-
-    // Update obstacles
     function updateObstacles(deltaTime) {
       obstacles.forEach(obstacle => {
         obstacle.y += obstacle.speed * deltaTime / 1000;
       });
       obstacles = obstacles.filter(obstacle => obstacle.y < canvas.height);
     }
-
-    // Check collisions
     function checkCollisions() {
       for (let obstacle of obstacles) {
         if (
@@ -445,8 +404,6 @@
         }
       }
     }
-
-    // Update score
     function updateScore() {
       score++;
       if (score > highScore) highScore = score;
@@ -457,18 +414,15 @@
       }
       updateScoreDisplay();
     }
-
     function updateScoreDisplay() {
       scoreDisplay.textContent = `Score: ${score} | Level: ${level} | High Score: ${highScore}`;
     }
-
-    // Draw the road
     function drawRoad() {
       ctx.fillStyle = '#555';
       ctx.fillRect(roadMargin, 0, canvas.width - roadMargin * 2, canvas.height);
       ctx.fillStyle = 'white';
-      ctx.fillRect(roadMargin - 5, 0, 5, canvas.height); // Left border
-      ctx.fillRect(canvas.width - roadMargin, 0, 5, canvas.height); // Right border
+      ctx.fillRect(roadMargin - 5, 0, 5, canvas.height);
+      ctx.fillRect(canvas.width - roadMargin, 0, 5, canvas.height);
       ctx.strokeStyle = 'white';
       ctx.lineWidth = 2;
       ctx.setLineDash([20, 15]);
@@ -481,71 +435,29 @@
       roadLineOffset += 2;
     }
 
-    // Toggle theme
-    function toggleTheme() {
-      isDarkMode = !isDarkMode;
-      document.body.style.background = isDarkMode ? '#111' : '#eee';
-      document.body.style.color = isDarkMode ? '#fff' : '#000';
-      canvas.style.background = isDarkMode ? '#222' : '#ddd';
-      scoreDisplay.style.color = isDarkMode ? '#fff' : '#000';
-    }
-
-    // Resize Canvas
-    function resizeCanvas() {
-      const availableWidth = window.innerWidth;
-      const availableHeight = window.innerHeight;
-      const scale = Math.min(availableWidth / 600, availableHeight / 800);
-      canvas.style.width = (600 * scale) + 'px';
-      canvas.style.height = (800 * scale) + 'px';
-      canvas.style.position = 'absolute';
-      canvas.style.left = ((availableWidth - 600 * scale) / 2) + 'px';
-      canvas.style.top = ((availableHeight - 800 * scale) / 2) + 'px';
-    }
-
-    // Resize Background Canvas
-    function resizeBackgroundCanvas() {
-      backgroundCanvas.width = window.innerWidth;
-      backgroundCanvas.height = window.innerHeight;
-      initStars();
-    }
-
-    // Initial resize
-    resizeCanvas();
-    resizeBackgroundCanvas();
-
-    // Add resize event listeners
-    window.addEventListener('resize', () => {
-      resizeCanvas();
-      resizeBackgroundCanvas();
-    });
-
-    // Show Difficulty Overlay
-    function showDifficultyOverlay() {
-      difficultyOverlay.style.display = 'flex';
-      sidebarMenu.style.display = 'none';
-    }
-
-    // Main game loop
+    // === MAIN GAME LOOP ===
     function gameLoop(timestamp) {
       if (!gameRunning || gamePaused) return;
-
       const deltaTime = timestamp - lastFrameTime;
       lastFrameTime = timestamp;
-
       ctx.fillStyle = isDarkMode ? '#222' : '#ddd';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-
       drawRoad();
 
-      if (keys['ArrowLeft']) carX -= carSpeed * deltaTime / 1000;
-      if (keys['ArrowRight']) carX += carSpeed * deltaTime / 1000;
+      // Use device orientation if available; else use keyboard/touch input.
+      if (useMotion) {
+        const sensitivity = 4;
+        carX += currentTilt * sensitivity * (deltaTime / 1000);
+      } else {
+        if (moveLeft) carX -= carSpeed * deltaTime / 1000;
+        if (moveRight) carX += carSpeed * deltaTime / 1000;
+      }
       carX = Math.max(roadMargin, Math.min(carX, canvas.width - roadMargin - carWidth));
 
       if (timestamp - lastObstacleTime > obstacleInterval) {
         obstacles.push(createObstacle());
         lastObstacleTime = timestamp;
       }
-
       updateObstacles(deltaTime);
       drawObstacles();
       drawCar();
@@ -555,8 +467,9 @@
       requestAnimationFrame(gameLoop);
     }
 
-    // Initialize the game
+    // Initialize and show the difficulty overlay on load
     updateScoreDisplay();
+    difficultyOverlay.style.display = 'flex';
   </script>
 </body>
 </html>
