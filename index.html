@@ -92,18 +92,22 @@
       background: linear-gradient(45deg, #e52e71, #ff8a00);
       transform: scale(1.05);
     }
-    /* Media Query: On mobile, adjust scoreboard & fullscreen button */
+    /* Media Query: On mobile, reposition score display & full screen button */
     @media (max-width: 600px) {
+      /* Score display moves to top right */
       #scoreDisplay {
         top: 10px;
-        left: 50%;
-        transform: translateX(-50%);
+        right: 10px;
+        left: auto;
+        transform: none;
         font-size: 1.4rem;
         padding: 10px 16px;
       }
+      /* Full screen button moves to top left and becomes a bit larger */
       #fullscreenButton {
         top: 10px;
-        right: 10px;
+        left: 10px;
+        right: auto;
         font-size: 1.1rem;
         padding: 12px 24px;
       }
@@ -409,11 +413,17 @@
     // === GAME FUNCTIONS ===
     function setDifficulty(selectedDifficulty) {
       difficulty = selectedDifficulty;
+      // Set base speeds based on chosen difficulty
       baseObstacleSpeed = difficulty === 'easy' ? 100 : difficulty === 'medium' ? 180 : 250;
       baseObstacleInterval = difficulty === 'easy' ? 2000 : difficulty === 'medium' ? 1500 : 1000;
+      // If mobile, further increase difficulty by increasing speed and reducing interval
+      if(isMobile) {
+        baseObstacleSpeed *= 1.5;
+        baseObstacleInterval = Math.floor(baseObstacleInterval * 0.7);
+      }
       obstacleSpeed = baseObstacleSpeed;
       obstacleInterval = baseObstacleInterval;
-      // Hide the difficulty overlay (splash already ended)
+      // Hide difficulty overlay and start game
       difficultyOverlay.style.display = 'none';
       startGame();
     }
@@ -542,7 +552,7 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       drawRoad();
 
-      // Increase sensitivity on mobile
+      // Increase gyro sensitivity on mobile if motion is enabled
       if (useMotion) {
         const sensitivity = isMobile ? 8 : 4;
         carX += currentTilt * sensitivity * (deltaTime / 1000);
